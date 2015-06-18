@@ -1,0 +1,80 @@
+<!--
+@license
+Copyright (c) 2015 Khaos-Coders. All rights reserved.
+This code may only be used under the BSD style license found at http://khaoscoders.github.io/LICENSE.txt
+The complete set of authors may be found at http://khaoscoders.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://khaoscoders.github.io/CONTRIBUTORS.txt
+Code distributed by Khaos-Coders as part of this project is also
+subject to an additional IP rights grant found at http://khaoscoders.github.io/PATENTS.txt
+-->
+<link rel="import" href="../polymer/polymer.html">
+<link rel="import" href="kc-websql.html">
+<link rel="import" href="kc-websql-fields.html">
+<link rel="import" href="kc-websql-index.html">
+<link rel="import" href="kc-websql-migration.html">
+
+<!--
+This element defines a table within a `kc-websql` SQLite database element.
+The minimum definition contains the `name`- and `version`-properties and a `kc-websql-fields` child element.
+It may also includes `kc-websql-index` elements, each defining one table index.
+
+Example:
+
+		<kc-websql-table name="tab" version="1.2" primary-key="name ASC">
+			<kc-websql-fields>name TEXT, version INTEGER, display REAL</kc-websql-fields>
+			<kc-websql-index name="tab_version">version ASC</kc-websql-index>
+		</kc-websql-table>
+	
+-->
+
+<script>
+
+	Polymer({
+	
+		is: 'kc-websql-table',
+		
+		properties: {
+			/**
+			 * Defines the table name
+			 */
+			name: {
+				type: String
+			},
+			
+			/**
+			 * The tables version, if newly created
+			 */
+			version: {
+				type: String,
+				value: '1.0'
+			},
+			
+			/**
+			 * If newly created, the provided column will become a primary key
+			 */
+			primaryKey: {
+				type: String,
+				value: ''
+			},
+			
+			/**
+			 * If the table exists and has another version, it will be dropped and recreated
+			 */
+			dropIfExists: {
+				type: Boolean,
+				value: false
+			},
+			
+			/**
+			 * Creates only a temporary table
+			 * Temporary tables don't have version- and migration-support!
+			 * These tables are dropped by the browser as soon as the visitor leaves the page
+			 */
+			temporary: {
+				type: Boolean,
+				value: false
+			}
+		}
+	});
+	
+</script>

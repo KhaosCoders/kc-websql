@@ -1,0 +1,487 @@
+<!--
+@license
+Copyright (c) 2015 Khaos-Coders. All rights reserved.
+This code may only be used under the BSD style license found at http://khaoscoders.github.io/LICENSE.txt
+The complete set of authors may be found at http://khaoscoders.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://khaoscoders.github.io/CONTRIBUTORS.txt
+Code distributed by Khaos-Coders as part of this project is also
+subject to an additional IP rights grant found at http://khaoscoders.github.io/PATENTS.txt
+-->
+<link rel="import" href="../polymer/polymer.html">
+<link rel="import" href="../iron-signals/iron-signals.html">
+<script src="../underscore/underscore.js"></script>
+
+<link rel="import" href="kc-websql-table.html">
+
+<!--
+This polymer element helps with `Web SQL` interactions.
+
+It helps you to set up a `SQLite` database on the client-side.
+
+You will need to add `kc-websql-table` child elements, each defining one table structure. 
+They may also include migration statements for upgrading already existing tables to the latest structure.
+
+Example:
+
+    <kc-websql database="demo-db">
+			<kc-websql-table name="tbl" version="1.0"> ... </kc-websql-table>
+		</kc-websql>
+
+@demo
+-->
+
+<dom-module id="kc-websql"><template></template></dom-module>
+<!-- Empty DOM module to hide table definitions in local DOM from prying eyes -->
+
+<script>
+
+	Polymer({
+		
+		is: 'kc-websql',
+		
+		properties: {
+			
+			/**
+			 * Name of the database.
+			 */
+			database: {
+				type: String,
+				value: 'local-db'
+			},
+			
+			/**
+			 * Database name to show visitors.
+			 * Only a few browsers use this.
+			 */
+			displayname: {
+				type: String,
+				value: 'client-side database'
+			},
+			
+			/**
+			 * Estimated maximum database size in bytes.
+			 * Some browsers will ask visitors whether they allow big databases or not.
+			 * The database can't get bigger than this very size.
+			 */
+			size: {
+				type: Number,
+				value: 5242880 // 5KB
+			},
+			
+			/**
+			 * Version number of the database schema.
+			 */
+			version: {
+				type: String,
+				value: '1.0'
+			}
+		},
+		
+		/**
+		 * Starts a new SQLite transaction.
+		 * Returns a promise. Handle all sql statements for the transaction within the promises resolve-method (THEN).
+		 * The transaction will be auto-committed when as soon as the promises resolve-method finishes.
+		 * The transaction will be rolled back, if any sql statement fails.
+		 * To manually rollback the transaction, call the collback-method on this element.
+		 */
+		transaction: function() {
+			return kcWebSql.transaction(this.database);
+		},
+		
+		/**
+		 * Rolls back a transaction
+		 */
+		rollback: function(tx) {
+			kcWebSql.rollback(tx);
+		},
+		
+		/**
+		 * Executes a sql statement in the given transaction context. 
+		 * You always need a transaction with Web SQL!
+		 * Returns a promise and passes the resultset data to its resolve-method (THEN)
+		 */
+		execSql: function(tx, sql, args) {
+			return kcWebSql.execSql(tx, sql, args);
+		},
+		
+		/**
+		 * Polymer attached-event
+		 * Initializes and creates the database
+		 */
+		ready: function() {
+			if (!kcWebSql.isSupported()) {
+				return;
+			}
+			
+			kcWebSql.openDatabase(
+				this.database, 
+				this.displayname, 
+				this.version, 
+				this.size, 
+				Polymer.dom(this).firstElementChild)
+					.catch(this._sqlError);
+		},
+		
+		/**
+		 * Fire iron-signal when WebSql isn't supported
+		 */
+		attached: function() {
+			if (!kcWebSql.isSupported()) {
+				this.fire('iron-signal', {name: 'kc-websql-unsupported', data: null});
+			}
+		},
+		
+		/**
+		 * Handles errors while database initialization
+		 */
+		_sqlError: function(err) {
+			console.error(err);
+		}
+		
+	});
+	
+	/**
+	 * WebSQL engine class
+	 */
+	var KCWebSql = function () {
+		
+		/**
+		 * db conntection cache
+		 */
+		this._db = {};
+		
+		/**
+		 * Open (create/prepare) a database
+		 *  - Creates a new database if no such database is found. Also creates all the tables in the database.
+		 *  - Upgrades all tables within the database if needed.
+		 * Returns a promise with the database instance passed to.
+		 * Uses caching, so only the first call will upgrade the database!
+		 */
+		this.openDatabase = function(dbName, displayName, version, size, firstTableNode) {
+			var _this=this;
+			return new Promise(function(resolve, reject) {
+				if(_this._db[dbName] != undefined) {
+					// Return cached database instance
+					resolve(_this._db[dbName]);
+					return;
+				}
+				// Get the current version of the database (or a new one)
+				var db = openDatabase(dbName,'',displayName,size);
+				if (!db) {
+					reject(Error('Database can\'t be created!'));
+					return;
+				}
+				// Cache database instance
+				_this._db[dbName]=db;
+				// Initialize / Upgrade database
+				db.transaction(function(tx) {
+					// If it not already exists, add table to manage other table's versions. 
+					_this._initVersionsTable(tx, reject)
+						// Change database version if needed
+						.then(_this._changeDbVersion(db, version, reject))
+						.then(function() {
+							// Create / upgrade tables
+							var tablePromises = new Array();
+							var tableNode = firstTableNode;
+							while (tableNode != undefined) {
+								if (tableNode.tagName == 'KC-WEBSQL-TABLE')
+									tablePromises.push(_this._checkTableVersion(tx, tableNode, reject));
+								tableNode = Polymer.dom(tableNode).nextElementSibling
+							}
+							return Promise.all(tablePromises);
+						})
+						.then(function() { resolve(db); })
+						.catch(function(err) {
+							// Rollback on any error
+							_this.rollback(tx);
+							reject(err);
+						});
+				});
+				
+			});
+		};
+		
+		/**
+		 * Checks the given table's version and calls for creation or upgrade if needed.
+		 * Returns a promise.
+		 */
+		this._checkTableVersion = function(tx, tableNode, reject) {
+			var _this = this;
+			if (!tableNode.name)
+				return Promise.reject(Error('Each table needs a name!'));
+			
+			var tableExists = false;
+			var currentVersion = '';
+			var dropTable = false;
+			
+			// Check if table exists
+			var sql = "SELECT name, '' as version FROM sqlite_master WHERE type='table' AND name=?"
+							+ " UNION"
+							+ " SELECT name,version FROM kc_table_versions where name=?";
+			return _this.execSql(tx, sql, [tableNode.name, tableNode.name])
+				.then(function(data) {
+					// Two rows: Everything good
+					// One row: Something wrong! 
+					// If version empty: Table exists, but is not listed in kc_table_versions
+					// If version filled: Table doesn't exist, but is listed in kc_table_versions
+					if (data.rows.length == 2) {
+						tableExists = true;
+						currentVersion = data.rows[1].version;
+						dropTable = tableNode.dropIfExists && currentVersion != tableNode.version;
+					} else if(data.rows.length == 1) {
+						dropTable=true;
+					}
+					// Drop table if wished
+					if (dropTable) {
+						return _this.execSql(tx, "DROP TABLE IF EXISTS "+tableNode.name, [])
+							.then(_this.execSql(tx, "DELETE FROM kc_table_versions WHERE name = ?", [tableNode.name]));
+					}
+					else return Promise.resolve();
+				})
+				.then(function() {
+					if (!tableExists || dropTable) {
+						// Create new table
+						return _this._createTable(tx, tableNode);
+					}
+					else
+					{
+						if (currentVersion != tableNode.version) {
+							// Upgrade table
+							return _this._upgradeTable(tx, tableNode, currentVersion);
+						}
+					}
+				});
+		};
+		
+		/**
+		 * Upgrades a table using the migrations.
+		 * Returns a promise.
+		 */
+		this._upgradeTable = function(tx, tableNode, currentVersion) {
+			var _this = this;
+			return new Promise(function(resolve, reject) {
+				var migration = _this._findMigration(tableNode, currentVersion);
+				if (!migration) {
+					reject(Error('No migration for table \'' + tableNode.name + '\' with version \'' + currentVersion + '\' was found'));
+					return;
+				}
+				var sql = migration.innerText.trim();
+				_this.execSql(tx, sql, [])
+					.then(_this.execSql(tx, "UPDATE kc_table_versions SET version=? WHERE name=?", [migration.to, tableNode.name]))
+					.then(function() {
+						if (tableNode.version != migration.to)
+							return _this._upgradeTable(tx, tableNode, migration.to);
+						else
+							return Promise.resolve();
+					})
+					.then(resolve)
+					.catch(reject);
+			});
+		};
+		
+		/**
+		 * Returns either a fitting migration node or undefined.
+		 * Migration nodes are picked from top to bottom.
+		 * The first migration with the given from-version is returned.
+		 */
+		this._findMigration = function(tableNode, fromVersion) {
+			var domNode = Polymer.dom(tableNode);
+			var migrationNodes = domNode.querySelectorAll('kc-websql-migration');
+			for (var migration in migrationNodes) {
+			  var mig = migrationNodes[migration];
+				if (mig.from == fromVersion && mig.to && mig.innerText)
+					return mig;
+			}
+			return undefined;
+		}
+		
+		/**
+		 * Creates a new table within the database.
+		 * Uses the given tableNode and its children for the table definition.
+		 * Returns a promise.
+		 */
+		this._createTable = function(tx, tableNode) {
+			var _this = this;
+			return new Promise(function(resolve, reject) {
+				var domNode = Polymer.dom(tableNode);
+				// Get field list for table
+				var fieldsNode = domNode.querySelector('kc-websql-fields');
+				if(!fieldsNode) {
+					reject(Error('kc-websql-table needs one kc-websql-fields child element. Table: '+tableNode.name));
+					return;
+				}
+				var fields = fieldsNode.innerText;
+				// Add primary key constraint
+				if(tableNode.primaryKey)
+					fields += ', PRIMARY KEY (' + tableNode.primaryKey + ')';
+				// Create table
+				var sql = 'CREATE ';
+				if (tableNode.temporary)
+					sql += 'TEMP ';
+				sql += 'TABLE ' + tableNode.name + ' (' + fields + ')'
+				var promise = _this.execSql(tx, sql, [])
+					.then(function() {
+						// Create table indices, if any defined
+						var indexNodes = domNode.querySelectorAll('kc-websql-index');
+						if (indexNodes && indexNodes.length>0) {
+							var indexPromises = new Array();
+							for (var node in indexNodes)
+								indexPromises.push(_this._createIndex(tx, tableNode.name, indexNodes[node]));
+							return Promise.all(indexPromises);
+						} 
+						return Promise.resolve();
+					});
+				
+				// Add table and version to kc_table_versions, if not temporary
+				if (!tableNode.temporary)
+					promise = promise.then(_this.execSql(tx,'INSERT INTO kc_table_versions (name, version) VALUES (?,?)', [tableNode.name, tableNode.version]));
+				
+				// Resolve / reject promise
+				promise
+					.then(resolve)
+					.catch(reject);
+			});
+	 	};
+		
+		/**
+		 * Creates a new table index for the given indexNode.
+		 * Returns a promise.
+		 */
+		this._createIndex = function(tx, table, indexNode) {
+			var _this=this;
+			return new Promise(function(resolve, reject) {
+				if (!indexNode || !indexNode.name || !indexNode.innerText) {
+					reject(Error('A table index needs at least a name and field list'));
+					return;
+				}
+				var sql = 'CREATE ';
+				if (indexNode.unique) 
+					sql += 'UNIQUE ';
+				sql += 'INDEX ' + indexNode.name + ' on ' + table + ' (' + indexNode.innerText+')';
+				_this.execSql(tx, sql, [])
+					.then(resolve)
+					.catch(reject);
+			});
+		};
+		
+		/**
+		 * Changes the SQLite database version if it differs.
+		 * Note: SQLite database version does mean nothing to us.
+		 * Returns a promise.
+		 */
+		this._changeDbVersion = function(db, version) {
+			return new Promise(function(resolve, reject) {
+				if(db.version == version) 
+					resolve();
+				else
+					db.changeVersion(db.version, version, 
+						function(tx){resolve();}, 
+						function(tx,err){reject(Error(err.message));});
+			});
+		};
+		
+		/**
+		 * Creates a table called 'kc_table_versions', if not already created.
+		 * This table is used to manage the versions of other tables.
+		 * Returns a promise.
+		 */
+		this._initVersionsTable = function(tx, reject) {
+			var _this = this;
+			return _this.execSql(tx, "SELECT name FROM sqlite_master WHERE type='table' AND name='kc_table_versions'", [])
+				.then(function(data) {
+					if(data.rows.length == 0)
+						return _this.execSql(tx, "CREATE TABLE kc_table_versions(name TEXT, version TEXT, PRIMARY KEY (name ASC))", []);
+					else return Promise.resolve();
+				});
+		};
+		
+		/**
+		 * Executes a sql statement and returns a promise.
+		 * The result data is passed to the promises resolve-method (THEN).
+		 */
+		this.execSql = function(tx, sql, args) {
+			// Create error instance outside of promise to retain stack-trace
+			var err = Error('');
+			return new Promise(function(resolve, reject) {
+				tx.executeSql(sql, args, 
+					function(tx, data) {resolve(data);},
+					function(tx, error) {
+						err.message=error.message+': '+sql
+						reject(err);
+					});
+			});
+		};
+		
+		/**
+		 * Causes a sql error and therefore a rollback of the transaction.
+		 * This is the best known work-around to the missing of a abort-method on transactions.
+		 */
+		this.rollback = function(tx) {
+			tx.executeSql('This will never work', []);
+		};
+		
+		/**
+		 * Starts a new sql transaction for the given database.
+		 * The database can be referenced by index, name or instance.
+		 * If no database is supplied the `first` database will be used. 
+		 * Returns a Promise.
+		 * 
+		 * Handle the transaction statements within the promises resolve-method (THEN).
+		 * The transaction is auto-committed as soon as the promises resolve-method finishes.
+		 * The transaction is rolled back, if any sql statements fails.
+		 * Hint: call kcWebSql.rollback(tx) to manually rollback a transaction.
+		 */
+		this.transaction = function(dbName) {
+		  if (!dbName) dbName = 0;
+			var db = this._getDb(dbName);
+			return new Promise(function(resolve, reject) {
+				if (!db) {
+					reject(Error('No database: '+dbName));
+					return;
+				}
+				// Start new transaction
+				db.transaction(function(tx) {
+					resolve(tx);
+				});
+			});
+		};
+		
+		/**
+		 * Returns a database instance by name (or instance).
+		 * If a string is passed, the database instance with this name is returned.
+		 * Else the passed parameter is expected to be the instance and returned again.
+		 */
+		this._getDb = function(db) {
+			if (typeof(db) == 'string') {
+				if (this._db[db]) return this._db[db];
+				return undefined;
+			} else if (typeof(db) == 'number') {
+				var k = Object.keys(this._db);
+				if (k.length>db)
+					return this._db[k[db]];
+				return undefined;
+			}
+			return db;
+		};
+		
+		/**
+		 * List of all API functions needed for this engine to work.
+		 */
+		this._neededFunctionTypes = new Array(
+			typeof(openDatabase), typeof(Promise)
+		);
+		
+		/**
+		 * Returns whether this engine is supported by the current browser.
+		 */
+		this.isSupported = function() {
+			return _.every(this._neededFunctionTypes, function (x) { return x != 'undefined'; });
+		};
+	};
+	
+	/**
+	 * instance of KCWebSql engine.
+	 */
+	var kcWebSql = new KCWebSql();
+	
+</script>

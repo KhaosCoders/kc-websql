@@ -1,0 +1,219 @@
+<!doctype html>
+<!--
+@license
+Copyright (c) 2015 Khaos-Coders. All rights reserved.
+This code may only be used under the BSD style license found at http://khaoscoders.github.io/LICENSE.txt
+The complete set of authors may be found at http://khaoscoders.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://khaoscoders.github.io/CONTRIBUTORS.txt
+Code distributed by Khaos-Coders as part of this project is also
+subject to an additional IP rights grant found at http://khaoscoders.github.io/PATENTS.txt
+-->
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+    <title>kc-websql Demo</title>
+    <script src="../../webcomponentsjs/webcomponents-lite.js"></script>
+		
+    <link rel="import" href="../kc-websql.html">
+		<link rel="import" href="../../paper-input/paper-input.html">
+		<link rel="import" href="../../paper-button/paper-button.html">
+		<link rel="stylesheet" href="../../paper-styles/paper-styles.html">
+		<link rel="import" href="../../paper-styles/demo-pages.html">
+		<link rel="import" href="../../paper-item/paper-item.html">
+		<link rel="import" href="../../paper-icon-button/paper-icon-button.html">
+		<link rel="import" href="../../iron-icons/iron-icons.html">
+		<link rel="import" href="../../paper-dialog/paper-dialog.html">
+		<link rel="import" href="../../paper-dialog/paper-dialog.html">
+		<link rel="import" href="../../array-composer/array-composer.html">
+		<link rel="import" href="../../kc-timer/kc-timer.html">
+		
+		<style>
+			body {
+				padding: 40px;
+			}
+			
+			paper-button.colorful {
+				color: #4285f4;
+			}
+
+			paper-button[raised].colorful {
+				background: #4285f4;
+				color: #fff;
+			}
+			
+			div.baseline {
+				padding-top:4px;
+			}
+			
+			div.footer {
+				position: absolute;
+				bottom: 0;
+				left: 0;
+				height: 30px;
+				font-size:1.2em;
+				padding: 4px 0px 0px 40px;
+				background-color:white;
+				width:100%;
+				border-top: 1px solid gray;
+			}
+		</style>
+  </head>
+  <body>
+		<!-- Enables polymer data-binding in main page. Yeay!! -->
+		<template is="dom-bind" id="dom-bind">
+			<div class="vertical layout">
+		
+				<H4>An example of <code>&lt;kc-websql&gt;</code>:</H4>
+
+				<div>
+					This page stores everything you type in below in a local database. <br/>
+					<ol>
+						<li>type something below</li>
+						<li>hit the 'SAVE' button or the return key</li>
+						<li>close this page</li>
+						<li><b>then visit it again!</b></li>
+						<li>fall from chair - please don't hurt yourself. <i>(optional)</i> </li>
+					<ol>
+				</div>
+				
+					
+				<kc-websql-unsupported on-show="showDialog">
+					<paper-dialog modal id="unsupported-dialog">
+						<h2> Ooops... </h2>
+						<div>
+							WebSQL is not supported by this browser.
+							Try your luck with another one.
+							For example the latest version of Google Chrome or Safari.
+						</div>
+					</paper-dialog>
+				</kc-websql-unsupported>
+				
+				<kc-websql database="demo-db" displayname="Demo-Database for kc-websql" size="52428800" version="1.0">
+					<kc-websql-table name="texts" version="1.0" primary-key="nr ASC">
+						<!-- SQLite will make `nr` an alias for `rowid` because it is an INTEGER and PRIMARY KEY -->
+						<kc-websql-fields>nr INTEGER, text TEXT, ts INTEGER</kc-websql-fields>
+						<kc-websql-index name="texts_ts">ts DESC</kc-websql-index>
+					</kc-websql-table>
+					
+					<!-- 
+						Place database actions inside kc-websql to hide them in local dom. 
+						But you don't have to ;)
+					-->
+					<kc-websql-select fields="text, ts, nr" from="texts" order="ts DESC" result="{{data}}" auto></kc-websql-select>
+					
+					<!-- kc-timer: used to get timestamp -->
+					<kc-timer timestamp="{{ts}}" output="ts" active fire-on-activate></kc-timer>
+					<!-- array-composer: used to merge fields to array -->
+					<array-composer length="2" array="{{insertArgs}}" f0="[[inputText]]" f1="[[ts]]" update-on="f0"></array-composer>
+					<kc-websql-insert fields="text,ts" into="texts" params="[[insertArgs]]" on-finished="sqlFinished"></kc-websql-insert>
+					
+					<kc-websql-delete from="texts" where="nr=?" on-finished="sqlFinished"></kc-websql-delete>
+					
+					<array-composer length="2" array="{{updateArgs}}" f0="[[ts]]" f1="[[updateNr]]" update-on="updateNr"></array-composer>
+					<kc-websql-update table="texts"  fields="ts=?" where="nr=?" params="[[updateArgs]]" on-finished="sqlFinished"></kc-websql-update>
+					
+				</kc-websql>
+				
+				<div>
+					<paper-input-container>
+						<label>Your text</label>
+						<input is="iron-input" id="text-input" bind-value="{{inputText}}" value="{{value::input}}">
+					</paper-input-container>
+					<paper-button onclick="save()" class="colorful">Save</paper-button>
+				</div>
+				
+				<div>
+					<template is="dom-if" if="{{data.length}}">
+						<paper-item>
+							<paper-item-body>
+								<pre>Go ahead and change the order or delete something!</pre>
+							</paper-item-body>
+						<paper-item>
+					</template>
+						
+					<h4>What you saved up to now</h4>
+					<template is="dom-repeat" items="{{data}}">
+						<div kc-texts-nr="{{item.nr}}">
+							<span>
+								<paper-icon-button icon="delete" kcnr="{{item.nr}}" onclick="deleteText(this.kcnr)"><paper-icon-button>
+							</span>
+							<span>
+								<paper-icon-button icon="arrow-drop-up" kcnr="{{item.nr}}" onclick="moveUp(this.kcnr)"><paper-icon-button>
+							</span>
+							<span>{{formatTimestamp(item.ts)}}</span>: <span>{{item.text}}</span>
+						</div>
+					</template>
+					<div class="baseline">
+						<span>{{data.length}}</span> - Records
+					</div>
+						
+				</div>
+			</div>
+			
+			<div class="footer">
+				By the way: This demo uses two other PolymerElements published by KC: 
+				<a href="https://github.com/KhaosCoders/array-composer" target="_blank">array-composer</a> & 
+				<a href="https://github.com/KhaosCoders/kc-timer" target="_blank">kc-timer</a>. 
+				Go and have a look!
+			</div>
+			<script>
+				function save() {
+					// Insert new text, parameters are set via data-bindings
+					Polymer.dom(document).querySelector('kc-websql-insert').execute();
+					
+					var input = document.getElementById('text-input');
+					input.value='';
+					input.focus();
+				}
+				
+				function deleteText(nr) {
+					// delete text by number index
+					Polymer.dom(document).querySelector('kc-websql-delete').execute(nr);
+				}
+				
+				function moveUp(nr) {
+					// move text up
+					Polymer.dom(document).querySelector("#dom-bind").updateNr=nr;
+					Polymer.dom(document).querySelector('kc-websql-update').execute();
+				}
+				
+				function padLeft(nr, n, str){
+					return Array(n-String(nr).length+1).join(str||'0')+nr;
+				}
+				
+				// Define polymer event handlers & formatter for data-bindings
+				(function() {
+					var domBind = document.getElementById('dom-bind');
+					
+					// sqlFinished event handler
+					domBind.sqlFinished = function () {
+						// execute select
+						Polymer.dom(document).querySelector('kc-websql-select').execute();
+					};
+					
+					// web sql not supported event handler
+					domBind.showDialog = function(s) {
+						Polymer.dom(document).querySelector("#unsupported-dialog").open();
+					};
+					
+					domBind.formatTimestamp = function(ts) {
+						var date = new Date(ts);
+						return (1900+date.getYear())+'/'+padLeft(date.getDate(),2,'0')+'/'+padLeft(date.getMonth(),2,'0')+' '
+							+ padLeft(date.getHours(),2,'0')+':'+padLeft(date.getMinutes(),2,'0')+':'+padLeft(date.getSeconds(),2,'0');
+					};
+					
+					// Save via return key
+					document.getElementById('text-input').addEventListener('change', function(e) {
+						if (document.activeElement == this) {
+							save();
+						}
+					});
+					
+					
+				})();
+			</script>
+		</template>
+		
+  </body>
+</html>

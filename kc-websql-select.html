@@ -1,0 +1,226 @@
+<!--
+@license
+Copyright (c) 2015 Khaos-Coders. All rights reserved.
+This code may only be used under the BSD style license found at http://khaoscoders.github.io/LICENSE.txt
+The complete set of authors may be found at http://khaoscoders.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://khaoscoders.github.io/CONTRIBUTORS.txt
+Code distributed by Khaos-Coders as part of this project is also
+subject to an additional IP rights grant found at http://khaoscoders.github.io/PATENTS.txt
+-->
+<link rel="import" href="../polymer/polymer.html">
+<link rel="import" href="kc-websql.html">
+<!--
+	TODO: 
+	Add some pending requests magic. 
+		Just like in iron-ajax.html using iron-request and managing loading-state better.
+	
+-->
+
+<!--
+This element is used to select data from a Web SQL database.
+
+It serves as data-provider and can be bound to other elements via data-binding or events.
+
+Example:
+
+		<kc-websql-select fields="text, ts" from="texts" result={{data}}"></kc-websql-select>
+		<kc-websql-select sql="SELECT text,ts FROM texts" result={{data}}"></kc-websql-select>
+-->
+
+<script>
+
+	Polymer({ 
+	
+		is: 'kc-websql-select',
+		
+		/**
+		 * Fired when a SELECT statement finished loading result data.
+		 *
+		 * @event finished
+		 */
+		
+		/**
+		 * Fired when an error occurred.
+		 * 
+		 * @event error
+		 */
+		
+		properties: {
+			/**
+			 * The element will always use the first database defined. 
+			 * But in case more than one database is used, you may specify the one you want to use.
+			 */
+			database: {
+				value: '',
+				type: String
+			},
+			
+			/**
+			 * Defines the results field list.
+			 * Only used to create a SELECT statement, when the `sql` property is not set.
+			 * See also: `from`, `order` and `where`.
+			 */
+			fields: {
+				value: '*',
+				type: String
+			},
+			
+			/**
+			 * Defines the table to select data from.
+			 * Only used to create a SELECT statement, when the `sql` property is not set.
+			 * See also: `fields`, `order` and `where`.
+			 */
+			from: {
+				value: '',
+				type: String
+			},
+			
+			/**
+			 * Defines the WHERE clause.
+			 * Only used to create a SELECT statement, when the `sql` property is not set.
+			 * See also: `from`, `order` and `fields`.
+			 */
+			where: {
+				value: '',
+				type: String
+			},
+			
+			/**
+			 * Parameters passed to the SELECT statement.
+			 */
+			params: {
+				value: [],
+				type: Array
+			},
+
+			/**
+			 * Defines the ORDER-BY clause.
+			 * Only used to create a SELECT statement, when the `sql` property is not set.
+			 * See also: `from`, `where` and `fields`.
+			 */
+			order: {
+				value: '',
+				type: String
+			},
+			
+			/**
+			 * Defines the SELECT statement, in case you need a more complex one.
+			 * Will obscure `fields`, `from`, `order` and `where`.
+			 */
+			sql: {
+				value: '',
+				type: String
+			},
+			
+			/**
+			 * If true, automatically runs a new SELECT statement when one of these properties changes:
+			 * `database`, `fields`, `from`, `where`, `order`, `sql`, `params` or `auto`
+			 */
+			auto: {
+				type: Boolean,
+				value: false
+			},
+			
+			/**
+			 * Will be set to the SELECT's result dataset.
+			 */
+			result: {
+				type: Object,
+				notify: true,
+				readOnly: true
+			},
+			
+			/**
+       * Will be set to true if there is a statement loading
+       */
+      loading: {
+        type: Boolean,
+        notify: true,
+        readOnly: true
+      }
+		},
+		
+		observers: [
+			'_selectOptionsChanged(database, fields, from, where, order, params, sql, auto)'
+		],
+		
+		/**
+		 * Runs the SELECT statement
+		 * You may pass `args`. This will cause the `params` property to be ignored
+		 * and `args` will be used as parameter list.
+		 */
+		execute: function(args) {
+			if (!kcWebSql.isSupported()) {
+				this.fire('iron-signal', {name: 'kc-websql-unsupported', data: null});
+				return;
+			}
+			
+			// Take specified or first database
+			var dbname = this.database;
+			if (!dbname)
+				dbname = 0; // Index 0: first database
+			
+			// Prepare sql statement
+			var sql = this.sql;
+			if (!sql) {
+				sql = 'SELECT ';
+				if (!this.fields) {
+					this._handleError(Error('Property fields or sql needed!'));
+					return;
+				}
+				sql += this.fields;
+				if (!this.from) {
+					this._handleError(Error('Property from or sql needed!'));
+					return;
+				}
+				sql += ' FROM ' + this.from;
+				if (this.where) {
+					sql += ' WHERE ' + this.where;
+				}
+				if (this.order) {
+					sql += ' ORDER BY ' + this.order;
+				}
+			}
+			
+			// ensure params is an array
+			var params = args;
+			if (!params)
+				params = this.params;
+			if(params && !_.isArray(params)) {
+				params = [params];
+			}
+			
+			// Execute SELECT statement
+			var _this = this;
+			this._setLoading(true);
+			kcWebSql.transaction(dbname)
+				.then(function(tx) {
+					return kcWebSql.execSql(tx, sql, params);
+				})
+				.then(function(data) {
+					data = _.map(data.rows, function(row) { return row; });
+					_this.fire('finished', {
+						data: data
+					});
+					_this._setResult(data);
+					_this._setLoading(false);
+				})
+				.catch(function(err) {
+					_this._handleError(err);
+					_this._setLoading(false);
+				});
+		},
+		
+		_handleError: function(err) {
+			this.fire('error', { 
+				error: err 
+			});
+		},
+		
+		_selectOptionsChanged: function() {
+			if(this.auto) 
+				this.execute();
+		}
+	});
+
+</script>

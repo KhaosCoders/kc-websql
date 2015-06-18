@@ -1,0 +1,59 @@
+<!--
+@license
+Copyright (c) 2015 Khaos-Coders. All rights reserved.
+This code may only be used under the BSD style license found at http://khaoscoders.github.io/LICENSE.txt
+The complete set of authors may be found at http://khaoscoders.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://khaoscoders.github.io/CONTRIBUTORS.txt
+Code distributed by Khaos-Coders as part of this project is also
+subject to an additional IP rights grant found at http://khaoscoders.github.io/PATENTS.txt
+-->
+<link rel="import" href="../polymer/polymer.html">
+<link rel="import" href="kc-websql.html">
+
+<!--
+This element is used within `kc-websql-table` elements.
+It defines a SQLite statement to upgrade the table from one version to another.
+
+Migrations are ignored if the attribute `drop-if-exists` is set for the table!
+
+Example:
+
+		<kc-websql-migration from="1.0" to="2.0">
+			ALTER TABLE tbl ADD COLUMN newcol TEXT;
+		</kc-websql-migration>
+	
+	When a migration is needed, the `first` migration with a fitting `from-version` is picked.
+	If the migrated table hasn't the final table version, the next migration is picked and processed.
+
+	Example:
+
+	Upgrading a table from version "1.0" to "2.0"
+		
+		<kc-websql-migration from="1.5" to="2.0"> ... </kc-websql-migration>
+		<kc-websql-migration from="1.0" to="1.5"> ... </kc-websql-migration>
+		<kc-websql-migration from="1.0" to="2.0"> ... </kc-websql-migration>
+		
+	With this order the table will be migrated:	1.0 -> 1.5 -> 2.0
+	
+	If the last migration was at the top, it would be: 	1.0 -> 2.0
+
+-->
+
+<script>
+
+	Polymer({
+		is: 'kc-websql-migration',
+		properties: {
+			/**
+			 * The tables version for which the migration is intended
+			 */
+			from: String,
+			
+			/**
+			 * The resulting table version string after the migration
+			 */
+			to: String
+		}
+	});
+	
+</script>

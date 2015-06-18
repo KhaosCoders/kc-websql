@@ -1,0 +1,69 @@
+<!--
+@license
+Copyright (c) 2015 Khaos-Coders. All rights reserved.
+This code may only be used under the BSD style license found at http://khaoscoders.github.io/LICENSE.txt
+The complete set of authors may be found at http://khaoscoders.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://khaoscoders.github.io/CONTRIBUTORS.txt
+Code distributed by Khaos-Coders as part of this project is also
+subject to an additional IP rights grant found at http://khaoscoders.github.io/PATENTS.txt
+-->
+<link rel="import" href="../polymer/polymer.html">
+<link rel="import" href="kc-websql.html">
+
+<!--
+This polymer element is shown when Web SQL isn't supported by the browser.
+It is also shown, if the Promise API isn't supported.
+
+Place any message to show the visitor in case his browser isn't ready to serve the `kc-websql` element in between this tag.
+
+Example:
+
+		<kc-websql-unsupported>
+			<p> 
+				Ooops...
+				WebSQL is not supported by this browser. 
+				Try your luck with another one.
+				For example the latest version of Google Chrome or Safari. 
+			</p>
+		</kc-websql-unsupported>
+		
+		<kc-websql> [...] </kc-websql>
+-->
+
+<dom-module id="kc-websql-unsupported">
+	<template>
+	  <iron-signals on-iron-signal-kc-websql-unsupported="_kcWebSqlUnsupported"></iron-signals>
+		<template is="dom-if" if="{{isVisible}}">
+			<content></content>
+		</template>
+	</template>
+</dom-module>
+
+<script>
+
+	Polymer({
+	
+		is: 'kc-websql-unsupported',
+		
+		/**
+		 * Fired when Web Sql isn't supported.
+		 * Call other functions here, like: dialog.show().
+		 * 
+		 * @event show
+		 */
+		
+		properties: {
+			isVisible: {
+				type: Boolean,
+				notify: true,
+				readOnly: true
+			}
+		},
+		
+		_kcWebSqlUnsupported: function(e, detail, sender) {
+			this._setIsVisible(true);
+			this.fire('show', {});
+		}
+	});
+	
+</script>

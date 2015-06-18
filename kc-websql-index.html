@@ -1,0 +1,45 @@
+<!--
+@license
+Copyright (c) 2015 Khaos-Coders. All rights reserved.
+This code may only be used under the BSD style license found at http://khaoscoders.github.io/LICENSE.txt
+The complete set of authors may be found at http://khaoscoders.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://khaoscoders.github.io/CONTRIBUTORS.txt
+Code distributed by Khaos-Coders as part of this project is also
+subject to an additional IP rights grant found at http://khaoscoders.github.io/PATENTS.txt
+-->
+<link rel="import" href="../polymer/polymer.html">
+<link rel="import" href="kc-websql.html">
+
+<!--
+This element is used within `kc-websql-table` elements.
+It defines a table index.
+
+Index names have to be `unique within the whole database`!
+
+Simply place the column and order (ASC / DESC) inside the element.
+
+Example:
+
+		<kc-websql-index name="table_index" unique>name ASC</kc-websql-index>
+-->
+
+<script>
+
+	Polymer({
+		is: 'kc-websql-index',
+		properties: {
+			/**
+			 * Name of the index
+			 * Must be unique within the database!
+			 */
+			name: String,
+			
+			/**
+			 * Defines a unique index
+			 * This constraint will throw an error when ever the index would become unique no more.
+			 */
+			unique: Boolean
+		}
+	});
+	
+</script>

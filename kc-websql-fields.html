@@ -1,0 +1,26 @@
+<!--
+@license
+Copyright (c) 2015 Khaos-Coders. All rights reserved.
+This code may only be used under the BSD style license found at http://khaoscoders.github.io/LICENSE.txt
+The complete set of authors may be found at http://khaoscoders.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://khaoscoders.github.io/CONTRIBUTORS.txt
+Code distributed by Khaos-Coders as part of this project is also
+subject to an additional IP rights grant found at http://khaoscoders.github.io/PATENTS.txt
+-->
+<link rel="import" href="../polymer/polymer.html">
+<link rel="import" href="kc-websql.html">
+
+<!--
+This element is used within `kc-websql-table` elements.
+It defines the field list of a table.
+
+See SQLite `CREATE TABLE` documentation for all valid column types.
+
+Example:
+
+		<kc-websql-fields>name TEXT, version INTEGER, display REAL</kc-websql-fields>
+-->
+
+<script>
+	Polymer({ is: 'kc-websql-fields' });
+</script>
