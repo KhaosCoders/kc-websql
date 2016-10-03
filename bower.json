@@ -1,6 +1,6 @@
 {
   "name": "kc-websql",
-  "version": "0.0.9",
+  "version": "1.0.0",
   "authors": [
     "Khaos <khaos@khaos-coders.org>"
   ],
@@ -21,7 +21,8 @@
 	"select",
 	"detele",
 	"update",
-    "kc"
+    "kc",
+	"SQLite"
   ],
   "main": "kc-websql.html",
   "license": "http://KhaosCoders.github.io/LICENSE.txt",
