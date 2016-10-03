@@ -17,7 +17,7 @@ subject to an additional IP rights grant found at http://khaoscoders.github.io/P
 -->
 
 <!--
-This element is used to select data from a Web SQL database.
+This element is used to select data from a `Web SQL` database.
 
 It serves as data-provider and can be bound to other elements via data-binding or events.
 
@@ -56,7 +56,7 @@ Example:
 			},
 			
 			/**
-			 * Defines the results field list.
+			 * Defines the result field list.
 			 * Only used to create a SELECT statement, when the `sql` property is not set.
 			 * See also: `from`, `order` and `where`.
 			 */
@@ -87,6 +87,8 @@ Example:
 			
 			/**
 			 * Parameters passed to the SELECT statement.
+			 * Use the questionmark (?) placeholder within your sql statements for parametrized statements.
+			 * These will be filled with the values from the `params` array.
 			 */
 			params: {
 				value: [],

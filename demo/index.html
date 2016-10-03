@@ -16,6 +16,11 @@ subject to an additional IP rights grant found at http://khaoscoders.github.io/P
     <script src="../../webcomponentsjs/webcomponents-lite.js"></script>
 		
     <link rel="import" href="../kc-websql.html">
+    <link rel="import" href="../kc-websql-select.html">
+    <link rel="import" href="../kc-websql-insert.html">
+    <link rel="import" href="../kc-websql-delete.html">
+    <link rel="import" href="../kc-websql-update.html">
+    <link rel="import" href="../kc-websql-unsupported.html">
 		<link rel="import" href="../../paper-input/paper-input.html">
 		<link rel="import" href="../../paper-button/paper-button.html">
 		<link rel="stylesheet" href="../../paper-styles/paper-styles.html">
@@ -110,7 +115,7 @@ subject to an additional IP rights grant found at http://khaoscoders.github.io/P
 					
 					<kc-websql-delete from="texts" where="nr=?" on-finished="sqlFinished"></kc-websql-delete>
 					
-					<array-composer length="2" array="{{updateArgs}}" f0="[[ts]]" f1="[[updateNr]]" update-on="updateNr"></array-composer>
+					<array-composer length="2" array="{{updateArgs}}" f0="[[ts]]" f1="[[updateNr]]" update-on="f1"></array-composer>
 					<kc-websql-update table="texts"  fields="ts=?" where="nr=?" params="[[updateArgs]]" on-finished="sqlFinished"></kc-websql-update>
 					
 				</kc-websql>

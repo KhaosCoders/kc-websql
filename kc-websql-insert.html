@@ -11,11 +11,11 @@ subject to an additional IP rights grant found at http://khaoscoders.github.io/P
 <link rel="import" href="kc-websql.html">
 
 <!--
-This element makes inserts into a Web Sql table easy.
+This element makes inserts into a `Web Sql` table easy.
 
 Simply set the `fields`, `into` and `params` attributes.
 
-Or for more complex cases, use the `sql` attribute to define your own INSER statement.
+Or for more complex cases, use the `sql` attribute to define your own INSERT statement.
 
 Example:
 
@@ -72,6 +72,9 @@ Example:
 			
 			/**
 			 * Parameters passed to the INSERT statement.
+			 * Use the questionmark (?) placeholder within your sql statements for parametrized statements.
+			 * These will be filled with the values from the `params` array.
+			 * If the `fields` property is used, the `params` will be inserted in the same order as the `fields`.
 			 */
 			params: {
 				value: [],
@@ -111,7 +114,7 @@ Example:
 		],
 		
 		/**
-		 * Runs the INSERT statement
+		 * Runs the INSERT statement.
 		 * You may pass `args`. This will cause the `params` property to be ignored
 		 * and `args` will be used as parameter list.
 		 */

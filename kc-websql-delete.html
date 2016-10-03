@@ -11,7 +11,7 @@ subject to an additional IP rights grant found at http://khaoscoders.github.io/P
 <link rel="import" href="kc-websql.html">
 
 <!--
-This element helps deleting things from a Web Sql database.
+This element helps deleting things from a `Web Sql` database.
 
 You may either set `from` and `where` or for more complex cases: `sql`.
 
@@ -71,6 +71,8 @@ Example:
 			
 			/**
 			 * Parameters passed to the DELETE statement.
+			 * Use the questionmark (?) placeholder within your sql statements for parametrized statements.
+			 * These will be filled with the values from the `params` array.
 			 */
 			params: {
 				value: [],

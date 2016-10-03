@@ -11,7 +11,7 @@ subject to an additional IP rights grant found at http://khaoscoders.github.io/P
 <link rel="import" href="kc-websql.html">
 
 <!--
-Use this element to update data in a Web Sql database.
+Use this element to update data in a `Web Sql` database.
 
 Example:
 
@@ -78,6 +78,8 @@ Example:
 			
 			/**
 			 * Parameters passed to the UPDATE statement.
+			 * Use the questionmark (?) placeholder within your sql statements for parametrized statements.
+			 * These will be filled with the values from the `params` array.
 			 */
 			params: {
 				value: [],

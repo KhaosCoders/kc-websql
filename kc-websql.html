@@ -78,11 +78,10 @@ Example:
 		},
 		
 		/**
-		 * Starts a new SQLite transaction.
-		 * Returns a promise. Handle all sql statements for the transaction within the promises resolve-method (THEN).
-		 * The transaction will be auto-committed when as soon as the promises resolve-method finishes.
+		 * Starts a new SQLite transaction and returns a promise. Handle all sql statements for the transaction within the resolve-method of the promise (THEN).
+		 * The transaction will be auto-committed as soon as the resolve-method is finished.
 		 * The transaction will be rolled back, if any sql statement fails.
-		 * To manually rollback the transaction, call the collback-method on this element.
+		 * To manually rollback the transaction, call the rollback-method on this element.
 		 */
 		transaction: function() {
 			return kcWebSql.transaction(this.database);

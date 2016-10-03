@@ -42,7 +42,7 @@ Example:
 			},
 			
 			/**
-			 * The tables version, if newly created
+			 * Latest version of the table schema
 			 */
 			version: {
 				type: String,
@@ -50,7 +50,7 @@ Example:
 			},
 			
 			/**
-			 * If newly created, the provided column will become a primary key
+			 * If newly created, the provided column will become the primary key
 			 */
 			primaryKey: {
 				type: String,
@@ -66,7 +66,7 @@ Example:
 			},
 			
 			/**
-			 * Creates only a temporary table
+			 * Creates a temporary table.
 			 * Temporary tables don't have version- and migration-support!
 			 * These tables are dropped by the browser as soon as the visitor leaves the page
 			 */
